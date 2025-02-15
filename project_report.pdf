@@ -1,0 +1,132 @@
+# Travel-Tide Customer Segmentation Project Report
+
+## 1. Problem Statement and Data Preparation
+
+### Problem Statement
+The travel app currently experiences a low conversion rate among browsers who don't make purchases. Our goal is to design targeted perks to increase conversion rates from the current baseline to 20% by attracting potential customers through personalized incentives.
+
+### Data Preparation
+- **Initial Dataset**: PostgreSQL database containing user, session, flight, and hotel data
+- **Filtering Criteria**: 
+  - Users with >7 sessions since January 4, 2023
+  - Removed outliers in spending and session metrics
+  - Validated data quality (negative values, missing data)
+- **Final Dataset**: ~6,000 users with complete behavioral profiles
+
+## 2. Feature Engineering
+
+### Core Metrics Development
+1. **Monetary Metrics**:
+   - Total spend (flights + hotels)
+   - Average booking value
+   - Customer lifetime value
+
+2. **Behavioral Metrics**:
+   - Session frequency
+   - Session duration
+   - Click-through rates
+
+3. **Discount Utilization**:
+   - Discount frequency
+   - Average discount amount
+   - Distance-adjusted discount score
+
+### Composite Scores
+1. **Bargain Hunter Index**:
+   - Combines discount frequency, amount, and distance sensitivity
+   - Normalized to 0-1 scale
+   - Weighted based on behavioral significance
+
+2. **Customer Value Score**:
+   - Monetary value (40%)
+   - Booking frequency (30%)
+   - Session engagement (30%)
+
+## 3. Segmentation Methodology
+
+### Approach Selection
+- Initially tested clustering (K-means)
+- Switched to rule-based approach for better interpretability
+- Validated using silhouette score and business logic
+
+### Segment Definitions
+1. **Platinum (10%)**:
+   - High total spend (>75th percentile)
+   - Low discount sensitivity
+   - Highest conversion potential
+
+2. **Gold (10%)**:
+   - High total spend (>75th percentile)
+   - High discount sensitivity
+   - Strong response to price incentives
+
+3. **Silver (30%)**:
+   - Medium spend (25th-75th percentile)
+   - Mixed discount behavior
+   - Moderate conversion potential
+
+4. **Bronze (50%)**:
+   - Lower spend (<25th percentile)
+   - Price-sensitive browsers
+   - Requires significant incentives
+
+## 4. Perk Assignment Strategy
+
+### Perk Types
+1. **Premium Support**:
+   - Minimum spend: $5,000
+   - Minimum bookings: 5
+   - Weight: 30%
+
+2. **Priority Booking**:
+   - Frequency score threshold: 0.7
+   - Weight: 20%
+
+3. **Discount Access**:
+   - Discount score threshold: 0.6
+   - Weight: 25%
+
+4. **Loyalty Bonus**:
+   - Monetary score threshold: 0.8
+   - Weight: 25%
+
+### Assignment Rules
+- Fuzzy logic implementation
+- Score-based eligibility
+- Segment-specific combinations
+
+## 5. Validation and Results
+
+### Metric Validation
+- Silhouette score: 0.42
+- Segment stability analysis
+- Cross-validation of rules
+
+### Expected Impact
+- Current conversion: 10%
+- Projected conversion: 15-20%
+- Segment-specific improvements:
+  - Platinum: +15%
+  - Gold: +12%
+  - Silver: +8%
+  - Bronze: +5%
+
+### Implementation Recommendations
+1. Phase rollout by segment
+2. A/B testing of perk combinations
+3. Continuous monitoring of conversion rates
+4. Quarterly review and adjustment
+
+## 6. Technical Implementation
+
+### Code Structure
+- Modular Python scripts
+- Automated pipeline
+- Comprehensive documentation
+- Version control integration
+
+### Quality Assurance
+- Unit tests for core functions
+- Data validation checks
+- Performance optimization
+- Error handling and logging 
