@@ -4,9 +4,28 @@ import seaborn as sns
 import numpy as np
 import psycopg2
 import os
+import sys
 
 # Create output directory
 os.makedirs('scripts/output/presentation', exist_ok=True)
+
+# Create markdown file for terminal output
+md_file = open('scripts/output/presentation/terminal_output.md', 'w', encoding='utf-8')
+
+class Logger:
+    def __init__(self, file):
+        self.terminal = sys.stdout
+        self.file = file
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.file.write(message)
+
+    def flush(self):
+        pass
+
+# Redirect stdout to Logger
+sys.stdout = Logger(md_file)
 
 # Database connection parameters
 db_params = {
@@ -259,4 +278,4 @@ def main():
             f.write(f"{segment}: +{improvement} percentage points\n")
 
 if __name__ == "__main__":
-    main() 
+    main()

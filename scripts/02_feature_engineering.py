@@ -14,6 +14,11 @@ logger = setup_logging(__name__)
 # Create output directory
 os.makedirs('scripts/output/metrics', exist_ok=True)
 os.makedirs('scripts/output/segments', exist_ok=True)
+md_file = open('scripts/output/metrics/feature_engineering_results.md', 'w', encoding='utf-8')
+
+def write_to_md(text):
+    """Write text to markdown file"""
+    md_file.write(text + '\n')
 
 class DatabaseConnection:
     def __init__(self):
@@ -32,6 +37,7 @@ def run_query(query, description="", connection=None):
     """Execute query and return results as a pandas DataFrame"""
     if description:
         logger.info(f"=== {description} ===")
+        write_to_md(f"\n## {description}\n")
     try:
         if connection:
             result = pd.read_sql_query(query, connection)
@@ -40,6 +46,7 @@ def run_query(query, description="", connection=None):
                 result = pd.read_sql_query(query, conn)
         if description:
             logger.info(f"Result Head:\n{result.head()}")
+            write_to_md(result.head().to_markdown(index=False))
         return result
     except Exception as e:
         logger.error(f"Error running query: {e}")
@@ -194,7 +201,8 @@ def plot_metric_distributions(metrics_df):
     plt.tight_layout()
     plt.savefig('scripts/output/segments/booking_metrics.png')
     plt.close()
-    
+    write_to_md("\n![Booking Metrics](./segments/booking_metrics.png)\n")
+
     # 2. Spending Metrics Plot
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
     
@@ -217,7 +225,8 @@ def plot_metric_distributions(metrics_df):
     plt.tight_layout()
     plt.savefig('scripts/output/segments/spending_metrics.png')
     plt.close()
-    
+    write_to_md("\n![Spending Metrics](./segments/spending_metrics.png)\n")
+
     # 3. Discount Behavior Plot
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
     
@@ -240,7 +249,8 @@ def plot_metric_distributions(metrics_df):
     plt.tight_layout()
     plt.savefig('scripts/output/segments/discount_behavior.png')
     plt.close()
-    
+    write_to_md("\n![Discount Behavior](./segments/discount_behavior.png)\n")
+
     # 4. Correlation Matrix
     plt.figure(figsize=(12, 10))
     correlation_metrics = [
@@ -260,8 +270,13 @@ def plot_metric_distributions(metrics_df):
     plt.tight_layout()
     plt.savefig('scripts/output/segments/metric_correlations.png')
     plt.close()
+    write_to_md("\n![Metric Correlations](./segments/metric_correlations.png)\n")
 
 def main():
+    write_to_md("# Feature Engineering Results\n")
+    write_to_md(f"Analysis generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    write_to_md("This report contains the results of feature engineering and customer segmentation analysis.\n")
+
     with DatabaseConnection() as conn:
         # Create the temporary cohort table
         create_temp_cohort_table(conn)
@@ -313,6 +328,10 @@ def main():
         logger.info("Correlations with bargain_hunter_index:")
         correlations = metrics.corr()['bargain_hunter_index'].sort_values(ascending=False)
         logger.info(correlations)
+        write_to_md("\n## Correlations with Bargain Hunter Index\n")
+        write_to_md(correlations.to_markdown())
+
+    md_file.close()
 
 if __name__ == "__main__":
     main()

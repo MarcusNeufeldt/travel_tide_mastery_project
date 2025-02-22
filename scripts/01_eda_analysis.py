@@ -7,10 +7,10 @@ import os
 import numpy as np
 
 # Create output directory if it doesn't exist
-os.makedirs('output/eda', exist_ok=True)
+os.makedirs('scripts/output/eda', exist_ok=True)
 
 # Create or open markdown file for writing
-md_file = open('output/eda/analysis_results.md', 'w', encoding='utf-8')
+md_file = open('scripts/output/eda/analysis_results.md', 'w', encoding='utf-8')
 
 # Database connection parameters
 db_params = {
@@ -64,6 +64,8 @@ def main():
     plt.style.use('seaborn')
     
     # 1. Table Sizes
+    # This query counts the number of records in each main table (users, sessions, flights, hotels)
+    # to give an overview of the database size and distribution of data across tables
     run_query("""
         SELECT 'users' as table_name, COUNT(*) as row_count FROM users
         UNION ALL
@@ -75,6 +77,8 @@ def main():
     """, "Table Sizes", "Overview of the number of records in each table of the database.")
 
     # 2. Data Quality Check - Null Values
+    # This query checks for missing values in key user demographic fields
+    # to ensure data quality and completeness for analysis
     run_query("""
         SELECT 
             COUNT(*) as total_rows,
@@ -86,6 +90,8 @@ def main():
     """, "Data Quality Check", "Analysis of missing values in the users table. All fields are complete with no null values.")
 
     # 3. Hotel Names Convention
+    # This query retrieves sample hotel names to understand the naming convention
+    # which follows a 'Brand - location' format
     run_query("""
         SELECT DISTINCT hotel_name 
         FROM hotels 
@@ -93,6 +99,8 @@ def main():
     """, "Hotel Names Convention", "Sample of hotel names showing the naming convention: 'Brand - location' format.")
 
     # 4. User Demographics
+    # This query analyzes user distribution by gender, marital status, and children
+    # to understand the customer base composition
     demographics = run_query("""
         SELECT 
             gender,
@@ -106,6 +114,8 @@ def main():
     """, "User Demographics", "Distribution of users by gender, marital status, and whether they have children. The majority of users are single without children.")
 
     # 5. Birth Year Distribution
+    # This query extracts birth years from user data to analyze age distribution
+    # and identify any unusual patterns that might need investigation
     birth_years = run_query("""
         SELECT 
             EXTRACT(YEAR FROM birthdate)::integer as birth_year,
@@ -121,11 +131,13 @@ def main():
     plt.title('Distribution of Birth Years')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig('output/eda/birth_year_distribution.png')
+    plt.savefig('scripts/output/eda/birth_year_distribution.png')
     plt.close()
-    write_to_md("\n![Birth Year Distribution](./birth_year_distribution.png)\n")
+    write_to_md("\n![Birth Year Distribution](./eda/birth_year_distribution.png)\n")
 
     # 6. Customer Age Analysis
+    # This query calculates how long users have been customers by analyzing sign-up dates
+    # and provides insights into customer retention and account age
     run_query("""
         SELECT 
             ROUND(CAST(AVG(DATE_PART('day', age(CURRENT_DATE, sign_up_date))/30.0) as numeric), 2) as avg_months_since_signup,
@@ -135,6 +147,8 @@ def main():
     """, "Customer Age Analysis", "Analysis of user sign-up dates and average account age.")
 
     # 7. Top 10 Hotels Analysis
+    # This query identifies the most frequently booked hotels and analyzes their
+    # booking patterns, average stay duration, and pricing
     popular_hotels = run_query("""
         SELECT 
             hotel_name,
@@ -148,6 +162,8 @@ def main():
     """, "Top 10 Popular Hotels", "Most frequently booked hotels, all located in New York, showing similar booking patterns and pricing.")
 
     # 8. Most Expensive Hotels
+    # This query identifies hotels with the highest average room rates,
+    # filtering out hotels with fewer than 10 bookings to ensure reliability
     run_query("""
         SELECT 
             hotel_name,
@@ -162,6 +178,8 @@ def main():
     """, "Top 10 Most Expensive Hotels", "Hotels with the highest average room rates (minimum 10 bookings). European hotels dominate this category.")
 
     # 9. Airlines Analysis
+    # This query analyzes airline performance over the last 6 months,
+    # including number of flights, average fares, and seat capacity
     run_query("""
         WITH last_6_months AS (
             SELECT MAX(departure_time) - INTERVAL '6 months' as cutoff_date
@@ -180,6 +198,8 @@ def main():
     """, "Top Airlines (Last 6 months)", "Most active airlines in the past 6 months by number of flights. Traditional carriers dominate the top positions.")
 
     # 10. Seasonal Price Variation
+    # This query analyzes flight price trends by month
+    # to identify seasonal patterns and pricing strategies
     seasonal_prices = run_query("""
         SELECT 
             EXTRACT(MONTH FROM departure_time)::integer as month,
@@ -196,9 +216,9 @@ def main():
     plt.xlabel('Month')
     plt.ylabel('Average Fare (USD)')
     plt.tight_layout()
-    plt.savefig('output/eda/seasonal_prices.png')
+    plt.savefig('scripts/output/eda/seasonal_prices.png')
     plt.close()
-    write_to_md("\n![Seasonal Price Variation](./seasonal_prices.png)\n")
+    write_to_md("\n![Seasonal Price Variation](./eda/seasonal_prices.png)\n")
 
     # Close the markdown file
     md_file.close()

@@ -14,6 +14,26 @@ from typing import Dict, List, Tuple
 # Setup logging
 logger = setup_logging(__name__)
 
+# Create output directories
+os.makedirs('scripts/output/segments', exist_ok=True)
+os.makedirs('scripts/output/metrics', exist_ok=True)
+
+try:
+    os.makedirs('scripts/output/metrics', exist_ok=True)
+    md_file = open('scripts/output/metrics/segmentation_results.md', 'w', encoding='utf-8')
+    logger.info('Created markdown file for results')
+except Exception as e:
+    logger.error(f'Error creating markdown file: {e}')
+    raise
+
+def write_to_md(text):
+    """Write text to markdown file with error handling"""
+    try:
+        md_file.write(text + '\n')
+    except Exception as e:
+        logger.error(f'Error writing to markdown file: {e}')
+        raise
+
 # Define customer perks and their requirements
 PERKS_CONFIG = {
     'premium_support': {
@@ -109,6 +129,10 @@ def analyze_segments(df):
     segment_stats['customer_percentage'] = (
         segment_stats['user_id'] / segment_stats['user_id'].sum() * 100
     ).round(2)
+    
+    # Write segment statistics to markdown
+    write_to_md("\n## Segment Statistics\n")
+    write_to_md(segment_stats.to_markdown())
     
     return segment_stats
 
@@ -632,6 +656,30 @@ def plot_segment_profiles(df):
     # Add new perk-related visualizations
     plot_perk_distributions(df)
 
+def plot_segment_profiles(df):
+    """Create visualizations of segment profiles"""
+    # Plot segment distributions
+    plt.figure(figsize=(12, 6))
+    sns.countplot(x='segment', data=df, order=['Bronze', 'Silver', 'Gold', 'Platinum'])
+    plt.title('Customer Segment Distribution')
+    plt.tight_layout()
+    plt.savefig('scripts/output/segments/segment_distribution.png')
+    plt.close()
+    write_to_md("\n![Segment Distribution](./segments/segment_distribution.png)\n")
+
+    # Plot segment characteristics
+    metrics = ['monetary_score', 'frequency_score', 'discount_score', 'final_score']
+    plt.figure(figsize=(15, 10))
+    for i, metric in enumerate(metrics, 1):
+        plt.subplot(2, 2, i)
+        sns.boxplot(x='segment', y=metric, data=df, 
+                    order=['Bronze', 'Silver', 'Gold', 'Platinum'])
+        plt.title(f'{metric} by Segment')
+    plt.tight_layout()
+    plt.savefig('scripts/output/segments/segment_characteristics.png')
+    plt.close()
+    write_to_md("\n![Segment Characteristics](./segments/segment_characteristics.png)\n")
+
 def create_base_scores(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate base RFM scores for customer segmentation.
@@ -756,6 +804,16 @@ def save_perks_assignment(df: pd.DataFrame) -> None:
 
 def main():
     """Main execution function with enhanced segmentation and validation."""
+    try:
+        # Write header to markdown file
+        write_to_md("# Customer Segmentation Results\n")
+        write_to_md(f"Analysis generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        write_to_md("This report contains the results of customer segmentation and perk assignment analysis.\n")
+        logger.info('Wrote header to markdown file')
+    except Exception as e:
+        logger.error(f'Error writing markdown header: {e}')
+        raise
+
     # Create output directory
     os.makedirs('scripts/output/segments', exist_ok=True)
     
@@ -786,6 +844,25 @@ def main():
     
     # Save perks assignment
     save_perks_assignment(df)
+
+    try:
+        # Write validation results
+        write_to_md("\n## Validation Results\n")
+        write_to_md(f"```\n{validation_results}\n```")
+        
+        # Write perk assignment summary
+        write_to_md("\n## Perk Assignment Summary\n")
+        write_to_md(f"Total customers: {len(df)}\n")
+        write_to_md("\n### Distribution by perk tier:\n")
+        write_to_md(df['perk_tier'].value_counts(normalize=True).round(3).mul(100).to_markdown())
+        write_to_md("\n### Most common perk combinations:\n")
+        write_to_md(df['assigned_perks'].value_counts().head().to_markdown())
+        
+        md_file.close()
+        logger.info('Successfully wrote all results to markdown file')
+    except Exception as e:
+        logger.error(f'Error writing final results to markdown file: {e}')
+        raise
 
 if __name__ == "__main__":
     main()
