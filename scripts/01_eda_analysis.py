@@ -4,9 +4,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
 import os
+import numpy as np
 
 # Create output directory if it doesn't exist
 os.makedirs('output/eda', exist_ok=True)
+
+# Create or open markdown file for writing
+md_file = open('output/eda/analysis_results.md', 'w', encoding='utf-8')
 
 # Database connection parameters
 db_params = {
@@ -17,19 +21,45 @@ db_params = {
     'port': '5432'
 }
 
-def run_query(query, description=""):
+def write_to_md(text):
+    """Write text to markdown file"""
+    md_file.write(text + '\n')
+
+def format_number(x):
+    """Format numbers to avoid scientific notation"""
+    if isinstance(x, (int, np.int64)):
+        return f"{x:,}"
+    elif isinstance(x, (float, np.float64)):
+        return f"{x:,.2f}"
+    return x
+
+def run_query(query, description="", summary=""):
     """Execute query and return results as a pandas DataFrame"""
     if description:
-        print(f"\n=== {description} ===")
+        write_to_md(f"\n## {description}\n")
+    if summary:
+        write_to_md(f"{summary}\n")
     try:
         conn = psycopg2.connect(**db_params)
         result = pd.read_sql_query(query, conn)
-        print(result)
+        
+        # Create a copy for markdown formatting
+        markdown_df = result.copy()
+        for col in markdown_df.select_dtypes(include=['int64', 'float64']).columns:
+            markdown_df[col] = markdown_df[col].apply(format_number)
+        
+        # Write formatted table to markdown
+        write_to_md(markdown_df.to_markdown(index=False))
         return result
     finally:
         conn.close()
 
 def main():
+    # Write header
+    write_to_md("# TravelTide Data Analysis Results\n")
+    write_to_md(f"Analysis generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    write_to_md("This report provides a comprehensive analysis of the TravelTide database, including user demographics, booking patterns, and pricing trends.\n")
+    
     # Set up plotting style
     plt.style.use('seaborn')
     
@@ -42,7 +72,7 @@ def main():
         SELECT 'flights', COUNT(*) FROM flights
         UNION ALL
         SELECT 'hotels', COUNT(*) FROM hotels;
-    """, "Table Sizes")
+    """, "Table Sizes", "Overview of the number of records in each table of the database.")
 
     # 2. Data Quality Check - Null Values
     run_query("""
@@ -53,14 +83,14 @@ def main():
             SUM(CASE WHEN married IS NULL THEN 1 ELSE 0 END) as null_married,
             SUM(CASE WHEN has_children IS NULL THEN 1 ELSE 0 END) as null_has_children
         FROM users;
-    """, "Null Values Check in Users Table")
+    """, "Data Quality Check", "Analysis of missing values in the users table. All fields are complete with no null values.")
 
     # 3. Hotel Names Convention
-    hotel_names = run_query("""
+    run_query("""
         SELECT DISTINCT hotel_name 
         FROM hotels 
         LIMIT 5;
-    """, "Sample Hotel Names")
+    """, "Hotel Names Convention", "Sample of hotel names showing the naming convention: 'Brand - location' format.")
 
     # 4. User Demographics
     demographics = run_query("""
@@ -73,17 +103,17 @@ def main():
         FROM users
         GROUP BY gender, married, has_children
         ORDER BY user_count DESC;
-    """, "User Demographics")
+    """, "User Demographics", "Distribution of users by gender, marital status, and whether they have children. The majority of users are single without children.")
 
-    # 5. Birth Year Distribution and 2006 Analysis
+    # 5. Birth Year Distribution
     birth_years = run_query("""
         SELECT 
-            EXTRACT(YEAR FROM birthdate) as birth_year,
+            EXTRACT(YEAR FROM birthdate)::integer as birth_year,
             COUNT(*) as count
         FROM users
         GROUP BY birth_year
         ORDER BY birth_year;
-    """, "Birth Year Distribution")
+    """, "Birth Year Distribution", "Distribution of user birth years. Note the unusual spike in 2006 which may require further investigation.")
 
     # Plot birth year distribution
     plt.figure(figsize=(12, 6))
@@ -93,15 +123,16 @@ def main():
     plt.tight_layout()
     plt.savefig('output/eda/birth_year_distribution.png')
     plt.close()
+    write_to_md("\n![Birth Year Distribution](./birth_year_distribution.png)\n")
 
     # 6. Customer Age Analysis
     run_query("""
         SELECT 
-            AVG(DATE_PART('day', age(CURRENT_DATE, sign_up_date))/30.0) as avg_months_since_signup,
+            ROUND(CAST(AVG(DATE_PART('day', age(CURRENT_DATE, sign_up_date))/30.0) as numeric), 2) as avg_months_since_signup,
             MIN(sign_up_date) as earliest_signup,
             MAX(sign_up_date) as latest_signup
         FROM users;
-    """, "Customer Age Analysis")
+    """, "Customer Age Analysis", "Analysis of user sign-up dates and average account age.")
 
     # 7. Top 10 Hotels Analysis
     popular_hotels = run_query("""
@@ -114,7 +145,7 @@ def main():
         GROUP BY hotel_name
         ORDER BY bookings DESC
         LIMIT 10;
-    """, "Top 10 Popular Hotels")
+    """, "Top 10 Popular Hotels", "Most frequently booked hotels, all located in New York, showing similar booking patterns and pricing.")
 
     # 8. Most Expensive Hotels
     run_query("""
@@ -128,7 +159,7 @@ def main():
         HAVING COUNT(*) > 10  -- Filter out hotels with few bookings
         ORDER BY avg_price_per_night DESC
         LIMIT 10;
-    """, "Top 10 Most Expensive Hotels")
+    """, "Top 10 Most Expensive Hotels", "Hotels with the highest average room rates (minimum 10 bookings). European hotels dominate this category.")
 
     # 9. Airlines Analysis
     run_query("""
@@ -146,17 +177,17 @@ def main():
         GROUP BY trip_airline
         ORDER BY flight_count DESC
         LIMIT 10;
-    """, "Top Airlines (Last 6 months)")
+    """, "Top Airlines (Last 6 months)", "Most active airlines in the past 6 months by number of flights. Traditional carriers dominate the top positions.")
 
     # 10. Seasonal Price Variation
     seasonal_prices = run_query("""
         SELECT 
-            EXTRACT(MONTH FROM departure_time) as month,
+            EXTRACT(MONTH FROM departure_time)::integer as month,
             ROUND(AVG(base_fare_usd), 2) as avg_fare
         FROM flights
         GROUP BY month
         ORDER BY month;
-    """, "Seasonal Price Variation")
+    """, "Seasonal Price Variation", "Average flight prices by month showing clear seasonal patterns with peaks in late summer and fall.")
 
     # Plot seasonal price variation
     plt.figure(figsize=(10, 6))
@@ -167,6 +198,10 @@ def main():
     plt.tight_layout()
     plt.savefig('output/eda/seasonal_prices.png')
     plt.close()
+    write_to_md("\n![Seasonal Price Variation](./seasonal_prices.png)\n")
+
+    # Close the markdown file
+    md_file.close()
 
 if __name__ == "__main__":
     main() 
