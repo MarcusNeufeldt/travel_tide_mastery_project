@@ -17,11 +17,7 @@ Analysis of TravelTide customer behavior to develop a targeted rewards program a
 
 ### Links to Files
 - [Executive Summary](executive_summary.md)
-- [Project Report](Docs/project_report.pdf)
-- [Visualizations](scripts/output/)
-  - [Bargain Index Distribution](scripts/output/presentation/bargain_index_distribution.png)
-  - [Segment Profiles](scripts/output/presentation/segment_profiles.png)
-  - [Segmentation Tree](scripts/output/presentation/segmentation_tree.png)
+- [Project Report](project_report.pdf)
 
 ## Installation
 
